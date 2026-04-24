@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "PBL5 Mobile",
+    "slug": "pbl5-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#f5f7fa"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "com.pbl5.mobile"
+    },
+    "ios": {
+      "bundleIdentifier": "com.pbl5.mobile"
+    },
+    "plugins": [
+      "expo-sharing",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Cho phép ứng dụng dùng camera để quét khuôn mặt"
+        }
+      ]
+    ]
+  }
+}

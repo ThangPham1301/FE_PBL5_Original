@@ -1,0 +1,23 @@
+# Expo
+.expo/
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Build
+dist/
+build/

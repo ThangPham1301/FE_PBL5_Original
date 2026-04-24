@@ -1,0 +1,485 @@
+﻿import React, { useEffect, useRef, useState } from 'react';
+import { Alert, FlatList, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import ScreenContainer from '../components/ScreenContainer';
+import InfoCard from '../components/InfoCard';
+import PrimaryButton from '../components/PrimaryButton';
+import DetailModal from '../components/DetailModal';
+import FloatingField from '../components/FloatingField';
+import { employeeAPI, unwrapResponse } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { minLength, validateRequired } from '../utils/validators';
+import useAppTheme from '../theme/useAppTheme';
+import AnimatedCard from '../components/AnimatedCard';
+
+export default function AdminEmployeesScreen() {
+  const { colors, radius } = useAppTheme();
+  const { user } = useAuth();
+  const [items, setItems] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [isFormVisible, setIsFormVisible] = useState(false);
+  const [enteredIds, setEnteredIds] = useState({});
+  const [animatedIds, setAnimatedIds] = useState({});
+  const [form, setForm] = useState({
+    username: '',
+    password: '',
+    employeeId: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    departmentId: '',
+    position: '',
+    phone: '',
+  });
+
+  const viewabilityConfigRef = useRef({
+    itemVisiblePercentThreshold: 45,
+  });
+
+  const onViewableItemsChanged = useRef(({ viewableItems }) => {
+    if (!Array.isArray(viewableItems)) {
+      return;
+    }
+    setEnteredIds((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const entry of viewableItems) {
+        const id = entry?.item?.id;
+        if (id == null) {
+          continue;
+        }
+        const key = String(id);
+        if (!next[key]) {
+          next[key] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }).current;
+
+  const canManage = user?.role === 'admin';
+
+  const sortEmployeesNewestFirst = (employeeList) => {
+    if (!Array.isArray(employeeList)) {
+      return [];
+    }
+
+    return [...employeeList].sort((left, right) => Number(right?.id || 0) - Number(left?.id || 0));
+  };
+
+  const resetForm = () => {
+    setForm({
+      username: '',
+      password: '',
+      employeeId: '',
+      firstName: '',
+      lastName: '',
+      email: '',
+      departmentId: '',
+      position: '',
+      phone: '',
+    });
+    setEditingEmployee(null);
+  };
+
+  const openCreateForm = () => {
+    resetForm();
+    setIsFormVisible(true);
+  };
+
+  const closeForm = () => {
+    resetForm();
+    setIsFormVisible(false);
+  };
+
+  const loadData = async () => {
+    setRefreshing(true);
+    try {
+      const response = await employeeAPI.getAll();
+      const data = unwrapResponse(response);
+      const rawItems = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+      setItems(sortEmployeesNewestFirst(rawItems));
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const createEmployee = async () => {
+    const validationError = validateRequired({
+      Username: form.username,
+      Password: form.password,
+      'Mã nhân viên': form.employeeId,
+      'Họ': form.firstName,
+      'Tên': form.lastName,
+    });
+
+    if (validationError) {
+      Alert.alert('Thiếu thông tin', validationError);
+      return;
+    }
+
+    if (!minLength(form.password, 6)) {
+      Alert.alert('Mật khẩu yếu', 'Mật khẩu cần tối thiểu 6 ký tự.');
+      return;
+    }
+
+    const payload = {
+      user: {
+        username: form.username.trim(),
+        password: form.password,
+        role: 'employee',
+        first_name: form.firstName.trim(),
+        last_name: form.lastName.trim(),
+        email: form.email.trim(),
+      },
+      employee_id: form.employeeId.trim(),
+      position: form.position.trim(),
+      phone: form.phone.trim(),
+    };
+
+    if (form.departmentId.trim()) {
+      payload.department = Number(form.departmentId);
+    }
+
+    try {
+      await employeeAPI.create(payload);
+      Alert.alert('Thành công', 'Đã tạo nhân viên');
+      closeForm();
+      await loadData();
+    } catch (error) {
+      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể tạo nhân viên. Kiểm tra payload theo serializer BE.');
+    }
+  };
+
+  const startEdit = (employee) => {
+    setIsFormVisible(true);
+    setEditingEmployee(employee);
+    setForm({
+      username: employee.user?.username || '',
+      password: '',
+      employeeId: employee.employee_id || '',
+      firstName: employee.user?.first_name || '',
+      lastName: employee.user?.last_name || '',
+      email: employee.user?.email || '',
+      departmentId: employee.department ? String(employee.department) : '',
+      position: employee.position || '',
+      phone: employee.phone || '',
+    });
+  };
+
+  const updateEmployee = async () => {
+    if (!editingEmployee) {
+      return;
+    }
+
+    const validationError = validateRequired({
+      Username: form.username,
+      'Mã nhân viên': form.employeeId,
+      'Họ': form.firstName,
+      'Tên': form.lastName,
+    });
+
+    if (validationError) {
+      Alert.alert('Thiếu thông tin', validationError);
+      return;
+    }
+
+    const payload = {
+      employee_id: form.employeeId.trim(),
+      position: form.position.trim(),
+      phone: form.phone.trim(),
+      user: {
+        username: form.username.trim(),
+        first_name: form.firstName.trim(),
+        last_name: form.lastName.trim(),
+        email: form.email.trim(),
+        role: 'employee',
+      },
+    };
+
+    if (form.password.trim()) {
+      payload.user.password = form.password;
+    }
+    if (form.departmentId.trim()) {
+      payload.department = Number(form.departmentId);
+    }
+
+    try {
+      await employeeAPI.update(editingEmployee.id, payload);
+      Alert.alert('Thành công', 'Đã cập nhật nhân viên.');
+      closeForm();
+      await loadData();
+    } catch (error) {
+      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể cập nhật nhân viên.');
+    }
+  };
+
+  const deleteEmployee = async (employee) => {
+    Alert.alert('Xác nhận xóa', `Bạn có chắc muốn xóa nhân viên ${employee.employee_id}?`, [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Xóa',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await employeeAPI.delete(employee.id);
+            if (editingEmployee?.id === employee.id) {
+              closeForm();
+            }
+            Alert.alert('Thành công', 'Đã xóa nhân viên.');
+            await loadData();
+          } catch (error) {
+            Alert.alert('Lỗi', error.response?.data?.message || 'Không thể xóa nhân viên.');
+          }
+        },
+      },
+    ]);
+  };
+
+  if (!canManage) {
+    return (
+      <ScreenContainer>
+        <Text style={styles.denied}>Bạn không có quyền truy cập màn hình này.</Text>
+      </ScreenContainer>
+    );
+  }
+
+  return (
+    <ScreenContainer scroll={false}>
+      <View style={styles.screenBody}>
+        <FlatList
+          data={items}
+          keyExtractor={(item) => String(item.id)}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfigRef.current}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} />}
+          ListHeaderComponent={
+            <View style={styles.headerWrap}>
+              <Text style={[styles.title, { color: colors.text }]}>Quản lý nhân viên</Text>
+            </View>
+          }
+          renderItem={({ item, index }) => (
+            <Pressable onPress={() => setSelectedEmployee(item)}>
+              <InfoCard
+                animationIndex={index}
+                playAnimation={Boolean(enteredIds[String(item.id)]) && !animatedIds[String(item.id)]}
+                onAnimationDone={() => setAnimatedIds((prev) => ({ ...prev, [String(item.id)]: true }))}
+                title={`${item.employee_id} - ${item.full_name || `${item.user?.first_name || ''} ${item.user?.last_name || ''}`.trim() || item.user?.username || 'N/A'}`}
+                subtitle={`${item.department_name || 'No department'} | ${item.position || 'No position'}`}
+                right={
+                  <View style={styles.actions}>
+                    <PrimaryButton title="Sửa" onPress={() => startEdit(item)} />
+                    <PrimaryButton title="Xóa" variant="secondary" onPress={() => deleteEmployee(item)} />
+                  </View>
+                }
+              />
+            </Pressable>
+          )}
+          ListEmptyComponent={<Text style={[styles.empty, { color: colors.textMuted }]}>Không có dữ liệu nhân viên.</Text>}
+          contentContainerStyle={styles.list}
+        />
+
+        {!isFormVisible ? (
+          <Pressable
+            onPress={openCreateForm}
+            style={[
+              styles.fab,
+              {
+                backgroundColor: colors.primary,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Ionicons name="add" size={28} color="#FFFFFF" />
+          </Pressable>
+        ) : null}
+      </View>
+
+      <Modal animationType="fade" transparent visible={isFormVisible} onRequestClose={closeForm}>
+        <Pressable style={styles.modalOverlay} onPress={closeForm}>
+          <View style={styles.modalContentWrap}>
+            <Pressable onPress={(event) => event.stopPropagation()}>
+              <AnimatedCard style={[styles.formModal, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: radius.lg }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  {editingEmployee ? 'Chỉnh sửa nhân viên' : 'Tạo nhân viên'}
+                </Text>
+                <Pressable onPress={closeForm} hitSlop={10} style={styles.closeButton}>
+                  <Ionicons name="close" size={22} color={colors.textMuted} />
+                </Pressable>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.formScrollContent}>
+                <FloatingField
+                  label="Username"
+                  value={form.username}
+                  onChangeText={(value) => setForm((prev) => ({ ...prev, username: value }))}
+                  autoCapitalize="none"
+                />
+                <FloatingField
+                  label={editingEmployee ? 'Mat khau moi (bo trong neu giu nguyen)' : 'Password'}
+                  value={form.password}
+                  onChangeText={(value) => setForm((prev) => ({ ...prev, password: value }))}
+                  secureTextEntry
+                />
+                <FloatingField
+                  label="Ma nhan vien"
+                  value={form.employeeId}
+                  onChangeText={(value) => setForm((prev) => ({ ...prev, employeeId: value }))}
+                />
+                <View style={styles.row}>
+                  <FloatingField
+                    label="Ho"
+                    containerStyle={styles.halfInput}
+                    value={form.firstName}
+                    onChangeText={(value) => setForm((prev) => ({ ...prev, firstName: value }))}
+                  />
+                  <FloatingField
+                    label="Ten"
+                    containerStyle={styles.halfInput}
+                    value={form.lastName}
+                    onChangeText={(value) => setForm((prev) => ({ ...prev, lastName: value }))}
+                  />
+                </View>
+                <FloatingField
+                  label="Email"
+                  value={form.email}
+                  onChangeText={(value) => setForm((prev) => ({ ...prev, email: value }))}
+                  keyboardType="email-address"
+                />
+                <View style={styles.row}>
+                  <FloatingField
+                    label="Department ID"
+                    containerStyle={styles.halfInput}
+                    value={form.departmentId}
+                    onChangeText={(value) => setForm((prev) => ({ ...prev, departmentId: value }))}
+                    keyboardType="number-pad"
+                  />
+                  <FloatingField
+                    label="Chuc vu"
+                    containerStyle={styles.halfInput}
+                    value={form.position}
+                    onChangeText={(value) => setForm((prev) => ({ ...prev, position: value }))}
+                  />
+                </View>
+                <FloatingField
+                  label="So dien thoai"
+                  value={form.phone}
+                  onChangeText={(value) => setForm((prev) => ({ ...prev, phone: value }))}
+                  keyboardType="phone-pad"
+                />
+
+                <PrimaryButton
+                  title={editingEmployee ? 'Lưu cập nhật nhân viên' : 'Tạo nhân viên'}
+                  onPress={editingEmployee ? updateEmployee : createEmployee}
+                  disabled={!form.username || !form.employeeId || !form.firstName || !form.lastName}
+                />
+                <PrimaryButton
+                  title={editingEmployee ? 'Hủy chỉnh sửa' : 'Đóng form'}
+                  variant="secondary"
+                  onPress={closeForm}
+                />
+              </ScrollView>
+            </AnimatedCard>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <DetailModal
+        visible={Boolean(selectedEmployee)}
+        title="Chi tiết nhân viên"
+        onClose={() => setSelectedEmployee(null)}
+        details={
+          selectedEmployee
+            ? [
+                { label: 'Mã nhân viên', value: selectedEmployee.employee_id || '--' },
+                { label: 'Username', value: selectedEmployee.user?.username || '--' },
+                { label: 'Họ tên', value: `${selectedEmployee.user?.first_name || ''} ${selectedEmployee.user?.last_name || ''}`.trim() || '--' },
+                { label: 'Email', value: selectedEmployee.user?.email || '--' },
+                { label: 'Phòng ban', value: selectedEmployee.department_name || '--' },
+                { label: 'Chức vụ', value: selectedEmployee.position || '--' },
+                { label: 'Điện thoại', value: selectedEmployee.phone || '--' },
+              ]
+            : []
+        }
+      />
+    </ScreenContainer>
+  );
+}
+
+const styles = StyleSheet.create({
+  screenBody: {
+    flex: 1,
+  },
+  title: { fontSize: 20, fontWeight: '800' },
+  denied: { fontSize: 16 },
+  headerWrap: { gap: 12, marginBottom: 14 },
+  row: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  halfInput: {
+    flex: 1,
+  },
+  list: { gap: 10, paddingBottom: 30 },
+  empty: {},
+  actions: {
+    width: 130,
+    gap: 8,
+  },
+  fab: {
+    position: 'absolute',
+    right: 16,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    elevation: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.58)',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  modalContentWrap: {
+    width: '100%',
+  },
+  formModal: {
+    borderWidth: 1,
+    padding: 14,
+    gap: 12,
+    maxHeight: '88%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formScrollContent: {
+    gap: 8,
+    paddingBottom: 4,
+  },
+});
