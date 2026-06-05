@@ -15,7 +15,12 @@ export function unwrapResponse(response) {
 export const authAPI = {
   login: (username, password) => axiosInstance.post('/auth/login/', { username, password }),
   refresh: (refresh) => axiosInstance.post('/auth/refresh/', { refresh }),
-  logout: (refresh) => axiosInstance.post('/auth/logout/', { refresh }),
+  logout: (refresh, access) =>
+    axiosInstance.post(
+      '/auth/logout/',
+      { refresh },
+      access ? { headers: { Authorization: `Bearer ${access}` } } : undefined
+    ),
 };
 
 export const employeeAPI = {
@@ -93,10 +98,11 @@ export const faceAPI = {
     axiosInstance.post('/face/validate/', {
       image,
     }),
-  register: (userId, images) =>
+  register: (userId, images, poses) =>
     axiosInstance.post('/face/register/', {
       user_id: String(userId),
       images,
+      poses,
     }),
   enroll: (employeeId, file) => {
     const formData = new FormData();
