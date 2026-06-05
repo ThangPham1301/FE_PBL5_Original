@@ -34,6 +34,7 @@ export default function ScreenContainer({ children, scroll = true, contentStyle,
     Reports: 'Báo cáo',
     OvertimeRequest: 'Đơn tăng ca',
     WorkRules: 'Quy định làm việc',
+    SmartOfficeControl: 'Smart Office Control',
     Home: 'Trang chủ',
     Login: 'Đăng nhập',
   };
@@ -208,6 +209,14 @@ export default function ScreenContainer({ children, scroll = true, contentStyle,
             </View>
 
             <View style={styles.menuList}>
+              <Pressable
+                style={[styles.menuItem, { borderColor: colors.border, backgroundColor: colors.bgSoft }]}
+                onPress={() => handleMenuAction(() => navigation.navigate('SmartOfficeControl'))}
+              >
+                <Ionicons name="hardware-chip-outline" size={18} color={colors.primary} />
+                <Text style={[styles.menuItemText, { color: colors.text }]}>Smart Office Control</Text>
+              </Pressable>
+
               <Pressable
                 style={[styles.menuItem, { borderColor: colors.border, backgroundColor: colors.bgSoft }]}
                 onPress={() => handleMenuAction(() => navigation.navigate('WorkRules'))}
