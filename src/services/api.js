@@ -94,9 +94,10 @@ export const reportsAPI = {
 };
 
 export const faceAPI = {
-  validate: (image) =>
+  validate: (image, pose) =>
     axiosInstance.post('/face/validate/', {
       image,
+      pose,
     }),
   register: (userId, images, poses) =>
     axiosInstance.post('/face/register/', {
