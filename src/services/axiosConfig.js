@@ -55,6 +55,7 @@ const axiosInstance = axios.create({
   timeout: 60000, // 60 giây cho requests lớn (face registration với 5 ảnh)
   headers: {
     'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
   },
 });
 

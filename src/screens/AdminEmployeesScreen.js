@@ -144,8 +144,9 @@ export default function AdminEmployeesScreen() {
       phone: form.phone.trim(),
     };
 
-    if (form.departmentId.trim()) {
-      payload.department = Number(form.departmentId);
+    const departmentId = form.departmentId.trim();
+    if (departmentId) {
+      payload.department = Number(departmentId);
     }
 
     try {
@@ -207,8 +208,9 @@ export default function AdminEmployeesScreen() {
     if (form.password.trim()) {
       payload.user.password = form.password;
     }
-    if (form.departmentId.trim()) {
-      payload.department = Number(form.departmentId);
+    const departmentId = form.departmentId.trim();
+    if (departmentId) {
+      payload.department = Number(departmentId);
     }
 
     try {
@@ -356,14 +358,14 @@ export default function AdminEmployeesScreen() {
                 />
                 <View style={styles.row}>
                   <FloatingField
-                    label="Department ID"
+                    label="Department ID (khong bat buoc)"
                     containerStyle={styles.halfInput}
                     value={form.departmentId}
                     onChangeText={(value) => setForm((prev) => ({ ...prev, departmentId: value }))}
                     keyboardType="number-pad"
                   />
                   <FloatingField
-                    label="Chuc vu"
+                    label="Chuc vu (khong bat buoc)"
                     containerStyle={styles.halfInput}
                     value={form.position}
                     onChangeText={(value) => setForm((prev) => ({ ...prev, position: value }))}

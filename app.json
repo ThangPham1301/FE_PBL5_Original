@@ -19,8 +19,6 @@
       "bundleIdentifier": "com.pbl5.mobile"
     },
     "plugins": [
-      "expo-sharing",
-      "@react-native-community/datetimepicker",
       [
         "expo-camera",
         {

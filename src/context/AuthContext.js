@@ -54,14 +54,15 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    try {
-      if (refreshToken) {
-        await authAPI.logout(refreshToken);
-      }
-    } catch (error) {
-      // Keep local logout even if backend logout fails.
-    }
+    const tokenToRevoke = refreshToken;
+    const accessToRevoke = accessToken;
     await logoutLocal();
+
+    if (tokenToRevoke) {
+      authAPI.logout(tokenToRevoke, accessToRevoke).catch(() => {
+        // Local logout must not depend on network availability.
+      });
+    }
   };
 
   const value = useMemo(
