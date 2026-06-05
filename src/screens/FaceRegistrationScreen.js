@@ -10,17 +10,60 @@ import useAppTheme from '../theme/useAppTheme';
 import AnimatedCard from '../components/AnimatedCard';
 
 const FACE_CAPTURE_STEPS = [
-  { pose: 'front', title: 'Chinh dien', hint: 'Nhin thang vao camera va giu mat trong vong tron.' },
-  { pose: 'left', title: 'Quay trai', hint: 'Quay nhe mat sang trai, van giu mat trong vong tron.' },
-  { pose: 'right', title: 'Quay phai', hint: 'Quay nhe mat sang phai, van giu mat trong vong tron.' },
-  { pose: 'up', title: 'Quay len', hint: 'Ngua mat len nhe, khong dua mat ra khoi vong tron.' },
-  { pose: 'down', title: 'Quay xuong', hint: 'Cui mat xuong nhe, giu mat ro va du sang.' },
+  { pose: 'front', title: 'Chính diện', hint: 'Nhìn thẳng vào camera và giữ mặt trong vòng tròn.' },
+  { pose: 'left', title: 'Quay trái', hint: 'Quay nhẹ mặt sang trái, vẫn giữ mặt trong vòng tròn.' },
+  { pose: 'right', title: 'Quay phải', hint: 'Quay nhẹ mặt sang phải, vẫn giữ mặt trong vòng tròn.' },
+  { pose: 'up', title: 'Ngửa lên', hint: 'Ngửa mặt lên nhẹ, không đưa mặt ra khỏi vòng tròn.' },
+  { pose: 'down', title: 'Cúi xuống', hint: 'Cúi mặt xuống nhẹ, giữ mặt rõ và đủ sáng.' },
 ];
 
 const REQUIRED_FACE_PHOTOS = FACE_CAPTURE_STEPS.length;
 const RING_TICK_COUNT = 80;
 const RING_SIZE = 266;
 const CAMERA_CIRCLE_SIZE = 238;
+const CENTER_DETECTION_BOX = {
+  left: 45,
+  top: 32,
+  width: 148,
+  height: 174,
+};
+const POSE_LANDMARK_GUIDES = {
+  front: [
+    { x: 0.35, y: 0.32 },
+    { x: 0.65, y: 0.32 },
+    { x: 0.5, y: 0.5 },
+    { x: 0.38, y: 0.72 },
+    { x: 0.62, y: 0.72 },
+  ],
+  left: [
+    { x: 0.34, y: 0.33 },
+    { x: 0.58, y: 0.31 },
+    { x: 0.4, y: 0.5 },
+    { x: 0.34, y: 0.71 },
+    { x: 0.55, y: 0.7 },
+  ],
+  right: [
+    { x: 0.42, y: 0.31 },
+    { x: 0.66, y: 0.33 },
+    { x: 0.6, y: 0.5 },
+    { x: 0.45, y: 0.7 },
+    { x: 0.66, y: 0.71 },
+  ],
+  up: [
+    { x: 0.35, y: 0.38 },
+    { x: 0.65, y: 0.38 },
+    { x: 0.5, y: 0.58 },
+    { x: 0.38, y: 0.78 },
+    { x: 0.62, y: 0.78 },
+  ],
+  down: [
+    { x: 0.35, y: 0.26 },
+    { x: 0.65, y: 0.26 },
+    { x: 0.5, y: 0.44 },
+    { x: 0.38, y: 0.63 },
+    { x: 0.62, y: 0.63 },
+  ],
+};
 
 function FaceProgressRing({ active, capturedCount, totalPhotos, spinValue }) {
   const progress = Math.min(1, Math.max(0, capturedCount / totalPhotos));
@@ -70,6 +113,57 @@ function FaceProgressRing({ active, capturedCount, totalPhotos, spinValue }) {
   );
 }
 
+function FaceLandmarkOverlay({ overlay, mirrored, pose }) {
+  const guideLandmarks = POSE_LANDMARK_GUIDES[pose] || POSE_LANDMARK_GUIDES.front;
+  const hasActualLandmarks = overlay?.frameSize?.width && overlay?.frameSize?.height && overlay.landmarks?.length;
+  const frameWidth = hasActualLandmarks ? overlay.frameSize.width : 1;
+  const frameHeight = hasActualLandmarks ? overlay.frameSize.height : 1;
+  const scale = Math.max(CAMERA_CIRCLE_SIZE / frameWidth, CAMERA_CIRCLE_SIZE / frameHeight);
+  const displayWidth = frameWidth * scale;
+  const displayHeight = frameHeight * scale;
+  const offsetX = (CAMERA_CIRCLE_SIZE - displayWidth) / 2;
+  const offsetY = (CAMERA_CIRCLE_SIZE - displayHeight) / 2;
+  const mapActualX = (x) => {
+    const mapped = offsetX + x * frameWidth * scale;
+    return mirrored ? CAMERA_CIRCLE_SIZE - mapped : mapped;
+  };
+  const mapActualY = (y) => offsetY + y * frameHeight * scale;
+  const mapGuideX = (x) => CENTER_DETECTION_BOX.left + x * CENTER_DETECTION_BOX.width;
+  const mapGuideY = (y) => CENTER_DETECTION_BOX.top + y * CENTER_DETECTION_BOX.height;
+
+  return (
+    <View style={styles.landmarkLayer} pointerEvents="none">
+      <View style={[styles.centerDetectionBox, CENTER_DETECTION_BOX]} />
+      {guideLandmarks.map((point, index) => (
+        <View
+          key={`guide-${pose}-${index}`}
+          style={[
+            styles.guideLandmarkDot,
+            {
+              left: mapGuideX(point.x) - 4,
+              top: mapGuideY(point.y) - 4,
+            },
+          ]}
+        />
+      ))}
+      {hasActualLandmarks
+        ? overlay.landmarks.map((point, index) => (
+            <View
+              key={`actual-${point.x}-${point.y}-${index}`}
+              style={[
+                styles.landmarkDot,
+                {
+                  left: mapActualX(point.x) - 4,
+                  top: mapActualY(point.y) - 4,
+                },
+              ]}
+            />
+          ))
+        : null}
+    </View>
+  );
+}
+
 export default function FaceRegistrationScreen() {
   const { colors, radius } = useAppTheme();
   const { user } = useAuth();
@@ -83,6 +177,7 @@ export default function FaceRegistrationScreen() {
   const [capturedCount, setCapturedCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [facing, setFacing] = useState('front');
+  const [faceOverlay, setFaceOverlay] = useState(null);
   const [scanHint, setScanHint] = useState(FACE_CAPTURE_STEPS[0].hint);
 
   const currentStep = FACE_CAPTURE_STEPS[Math.min(capturedCount, REQUIRED_FACE_PHOTOS - 1)];
@@ -112,6 +207,10 @@ export default function FaceRegistrationScreen() {
     setFacing((current) => (current === 'front' ? 'back' : 'front'));
   };
 
+  useEffect(() => {
+    setFaceOverlay(null);
+  }, [currentStep.pose]);
+
   const withTimeout = (promise, ms, message) =>
     Promise.race([
       promise,
@@ -122,7 +221,7 @@ export default function FaceRegistrationScreen() {
 
   const scanAndRegister = () => {
     if (!userId) {
-      Alert.alert('Khong the dang ky', 'Tai khoan hien tai chua lien ket nhan vien.');
+      Alert.alert('Không thể đăng ký', 'Tài khoản hiện tại chưa liên kết nhân viên.');
       return;
     }
 
@@ -132,44 +231,45 @@ export default function FaceRegistrationScreen() {
     }
 
     Alert.alert(
-      'Xac nhan dang ky khuon mat',
-      'Ban se chup lan luot 5 goc: chinh dien, trai, phai, len, xuong. Du lieu cu se bi xoa sau khi gui thanh cong. Tiep tuc?',
+      'Xác nhận đăng ký khuôn mặt',
+      'Bạn sẽ chụp lần lượt 5 góc: chính diện, trái, phải, lên, xuống. Dữ liệu cũ sẽ bị xóa sau khi gửi thành công. Tiếp tục?',
       [
-        { text: 'Huy', onPress: () => {}, style: 'cancel' },
-        { text: 'Tiep tuc', onPress: captureCurrentPose, style: 'default' },
+        { text: 'Hủy', onPress: () => {}, style: 'cancel' },
+        { text: 'Tiếp tục', onPress: captureCurrentPose, style: 'default' },
       ]
     );
   };
 
   const submitRegistration = async (imagesToSubmit = capturedImages, posesToSubmit = capturedPoses) => {
     if (imagesToSubmit.length !== REQUIRED_FACE_PHOTOS || posesToSubmit.length !== REQUIRED_FACE_PHOTOS) {
-      Alert.alert('Chua du anh', `Can chup du ${REQUIRED_FACE_PHOTOS} anh truoc khi gui.`);
+      Alert.alert('Chưa đủ ảnh', `Cần chụp đủ ${REQUIRED_FACE_PHOTOS} ảnh trước khi gửi.`);
       return;
     }
 
     setSubmitting(true);
-    setScanHint('Da du 5 anh, dang gui du lieu...');
+    setScanHint('Đã đủ 5 ảnh, đang gửi dữ liệu...');
 
     try {
       console.log('[FaceRegistration] Sending 5 pose images...', { poses: posesToSubmit });
       const response = await withTimeout(
         faceAPI.register(userId.trim(), imagesToSubmit, posesToSubmit),
         45000,
-        'Gui dang ky qua lau. Vui long kiem tra ket noi backend hoac ChromaDB.'
+        'Gửi đăng ký quá lâu. Vui lòng kiểm tra kết nối máy chủ hoặc ChromaDB.'
       );
       const payload = response?.data || {};
 
       if (payload.success) {
         Alert.alert(
-          'Thanh cong',
-          `${payload.message || 'Da dang ky khuon mat hoan tat.'}\n\nNhan vien: ${payload.employee_code || userId}\nSo anh: ${payload.image_count}`
+          'Thành công',
+          `${payload.message || 'Đã đăng ký khuôn mặt hoàn tất.'}\n\nNhân viên: ${payload.employee_code || userId}\nSố ảnh: ${payload.image_count}`
         );
         setCapturedImages([]);
         setCapturedPoses([]);
         setCapturedCount(0);
+        setFaceOverlay(null);
         setScanHint(FACE_CAPTURE_STEPS[0].hint);
       } else {
-        Alert.alert('Thong bao', payload.message || 'Dang ky khuon mat hoan tat.');
+        Alert.alert('Thông báo', payload.message || 'Đăng ký khuôn mặt hoàn tất.');
       }
     } catch (error) {
       console.error('[FaceRegistration] Error:', {
@@ -183,9 +283,9 @@ export default function FaceRegistrationScreen() {
         error?.response?.data?.message ||
         error?.response?.data?.errors?.images?.[0] ||
         error?.message ||
-        'Khong the dang ky khuon mat. Vui long kiem tra ket noi mang.';
-      setScanHint('Gui dang ky that bai. Bam lai de gui lai hoac chup lai tu dau.');
-      Alert.alert('Loi', message);
+        'Không thể đăng ký khuôn mặt. Vui lòng kiểm tra kết nối mạng.';
+      setScanHint('Gửi đăng ký thất bại. Bấm lại để gửi lại hoặc chụp lại từ đầu.');
+      Alert.alert('Lỗi', message);
     } finally {
       setSubmitting(false);
     }
@@ -200,18 +300,18 @@ export default function FaceRegistrationScreen() {
     if (!permission?.granted) {
       const permissionResult = await requestPermission();
       if (!permissionResult.granted) {
-        Alert.alert('Thieu quyen', 'Vui long cap quyen camera de quet khuon mat.');
+        Alert.alert('Thiếu quyền', 'Vui lòng cấp quyền camera để quét khuôn mặt.');
         return;
       }
     }
 
     if (!cameraRef.current) {
-      Alert.alert('Camera chua san sang', 'Vui long doi camera khoi tao roi thu lai.');
+      Alert.alert('Camera chưa sẵn sàng', 'Vui lòng đợi camera khởi tạo rồi thử lại.');
       return;
     }
 
     setSubmitting(true);
-    setScanHint(`Dang chup goc ${currentStep.title}...`);
+    setScanHint(`Đang chụp góc ${currentStep.title}...`);
 
     try {
       const step = FACE_CAPTURE_STEPS[capturedCount];
@@ -223,11 +323,35 @@ export default function FaceRegistrationScreen() {
             pauseAfterCapture: false,
         }),
         12000,
-        'Camera chup qua lau. Vui long thu lai.'
+        'Camera chụp quá lâu. Vui lòng thử lại.'
       );
 
       if (!photo?.base64) {
-        throw new Error('Khong lay duoc du lieu anh base64.');
+        throw new Error('Không lấy được dữ liệu ảnh base64.');
+      }
+
+      setScanHint('Đang kiểm tra landmark khuôn mặt...');
+      const validationResponse = await withTimeout(
+        faceAPI.validate(photo.base64, step.pose),
+        20000,
+        'Kiểm tra khuôn mặt quá lâu. Vui lòng thử lại.'
+      );
+      const validation = validationResponse?.data || {};
+      if (validation.landmarks?.length) {
+        setFaceOverlay({
+          landmarks: validation.landmarks,
+          faceBox: validation.face_box,
+          frameSize: validation.frame_size,
+        });
+      } else {
+        setFaceOverlay(null);
+      }
+
+      if (!validation.is_clear && !validation.can_capture) {
+        const validationMessage = validation.message || 'Khuôn mặt chưa hợp lệ, vui lòng làm theo hướng dẫn và chụp lại.';
+        setScanHint(validationMessage);
+        Alert.alert('Chưa thể lưu ảnh', validationMessage);
+        return;
       }
 
       const nextImages = [...capturedImages, photo.base64];
@@ -255,8 +379,8 @@ export default function FaceRegistrationScreen() {
       const message =
         error?.response?.data?.message ||
         error?.message ||
-        'Khong the chup anh. Vui long thu lai.';
-      Alert.alert('Loi', message);
+        'Không thể chụp ảnh. Vui lòng thử lại.';
+      Alert.alert('Lỗi', message);
     } finally {
       setSubmitting(false);
     }
@@ -266,19 +390,20 @@ export default function FaceRegistrationScreen() {
     setCapturedImages([]);
     setCapturedPoses([]);
     setCapturedCount(0);
+    setFaceOverlay(null);
     setScanHint(FACE_CAPTURE_STEPS[0].hint);
   };
 
   const actionTitle = submitting
-    ? 'Dang xu ly...'
+    ? 'Đang xử lý...'
     : capturedCount >= REQUIRED_FACE_PHOTOS
-      ? 'Gui lai dang ky khuon mat'
-      : `Chup ${currentStep.title}`;
+      ? 'Gửi lại đăng ký khuôn mặt'
+      : `Chụp ${currentStep.title}`;
 
   if (!permission) {
     return (
       <ScreenContainer>
-        <Text style={[styles.note, { color: colors.textMuted }]}>Dang kiem tra quyen camera...</Text>
+        <Text style={[styles.note, { color: colors.textMuted }]}>Đang kiểm tra quyền camera...</Text>
       </ScreenContainer>
     );
   }
@@ -286,23 +411,23 @@ export default function FaceRegistrationScreen() {
   if (!permission.granted) {
     return (
       <ScreenContainer>
-        <Text style={[styles.note, { color: colors.textMuted }]}>Ung dung can quyen camera de quet khuon mat.</Text>
-        <PrimaryButton title="Cap quyen camera" onPress={requestPermission} />
+        <Text style={[styles.note, { color: colors.textMuted }]}>Ứng dụng cần quyền camera để quét khuôn mặt.</Text>
+        <PrimaryButton title="Cấp quyền camera" onPress={requestPermission} />
       </ScreenContainer>
     );
   }
 
   return (
     <ScreenContainer>
-      <Text style={[styles.title, { color: colors.text }]}>Dang ky khuon mat</Text>
+      <Text style={[styles.title, { color: colors.text }]}>Đăng ký khuôn mặt</Text>
       <AnimatedCard style={[styles.form, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: radius.md }]}>
         <FloatingField
-          label="User ID tu tai khoan dang nhap"
+          label="User ID từ tài khoản đăng nhập"
           value={userId}
           onChangeText={() => {}}
           editable={false}
         />
-        <Text style={[styles.caption, { color: colors.textMuted }]}>Chup 5 goc de nhan dien on dinh hon khi cham cong.</Text>
+        <Text style={[styles.caption, { color: colors.textMuted }]}>Chụp 5 góc để nhận diện ổn định hơn khi chấm công.</Text>
 
         <View style={[styles.cameraWrap, { borderColor: colors.border, borderRadius: radius.md }]}>
           <Text style={styles.poseLabel}>{currentStep.title}</Text>
@@ -316,6 +441,7 @@ export default function FaceRegistrationScreen() {
                 animateShutter={false}
                 onCameraReady={() => setCameraReady(true)}
               />
+              <FaceLandmarkOverlay overlay={faceOverlay} mirrored={facing === 'front'} pose={currentStep.pose} />
             </View>
             <FaceProgressRing
               active={submitting}
@@ -327,18 +453,18 @@ export default function FaceRegistrationScreen() {
           </View>
           <View style={[styles.toggleButtonWrap, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}>
             <TouchableOpacity onPress={toggleCameraFacing}>
-              <Text style={[styles.toggleButton, { color: '#FFFFFF' }]}>Xoay Camera</Text>
+              <Text style={[styles.toggleButton, { color: '#FFFFFF' }]}>Xoay camera</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {submitting ? (
-          <Text style={[styles.progressCount, { color: colors.text }]}>Dang xu ly: {capturedCount}/{REQUIRED_FACE_PHOTOS}</Text>
+          <Text style={[styles.progressCount, { color: colors.text }]}>Đang xử lý: {capturedCount}/{REQUIRED_FACE_PHOTOS}</Text>
         ) : (
-          <Text style={[styles.progressCount, { color: colors.text }]}>Da chup: {capturedCount}/{REQUIRED_FACE_PHOTOS}</Text>
+          <Text style={[styles.progressCount, { color: colors.text }]}>Đã chụp: {capturedCount}/{REQUIRED_FACE_PHOTOS}</Text>
         )}
         {!cameraReady ? (
-          <Text style={[styles.progress, { color: colors.textMuted }]}>Dang khoi tao camera...</Text>
+          <Text style={[styles.progress, { color: colors.textMuted }]}>Đang khởi tạo camera...</Text>
         ) : null}
         <Text style={[styles.progress, { color: submitting ? colors.text : colors.textMuted }]}>{scanHint}</Text>
 
@@ -348,10 +474,10 @@ export default function FaceRegistrationScreen() {
           disabled={submitting || !userId}
         />
         {capturedCount > 0 && !submitting ? (
-          <PrimaryButton title="Chup lai tu dau" variant="secondary" onPress={resetCapture} />
+          <PrimaryButton title="Chụp lại từ đầu" variant="secondary" onPress={resetCapture} />
         ) : null}
       </AnimatedCard>
-      <Text style={[styles.note, { color: colors.textMuted }]}>Goi y: giu mat ro, du sang va di chuyen dau nhe theo tung huong.</Text>
+      <Text style={[styles.note, { color: colors.textMuted }]}>Gợi ý: giữ mặt rõ, đủ sáng và di chuyển đầu nhẹ theo từng hướng.</Text>
     </ScreenContainer>
   );
 }
@@ -393,10 +519,43 @@ const styles = StyleSheet.create({
     height: CAMERA_CIRCLE_SIZE,
     borderRadius: CAMERA_CIRCLE_SIZE / 2,
     overflow: 'hidden',
+    position: 'relative',
     backgroundColor: '#111111',
   },
   camera: {
     flex: 1,
+  },
+  landmarkLayer: {
+    position: 'absolute',
+    width: CAMERA_CIRCLE_SIZE,
+    height: CAMERA_CIRCLE_SIZE,
+    left: 0,
+    top: 0,
+  },
+  centerDetectionBox: {
+    position: 'absolute',
+    borderWidth: 2,
+    borderColor: '#5DFFF2',
+    borderRadius: 22,
+    backgroundColor: 'rgba(93, 255, 242, 0.08)',
+  },
+  guideLandmarkDot: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#083C42',
+    backgroundColor: '#5DFFF2',
+  },
+  landmarkDot: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#111111',
+    backgroundColor: '#FFE45D',
   },
   progressRing: {
     position: 'absolute',
