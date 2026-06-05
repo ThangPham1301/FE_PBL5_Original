@@ -18,6 +18,7 @@ import ShiftsManagementScreen from '../screens/ShiftsManagementScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import OvertimeRequestScreen from '../screens/OvertimeRequestScreen';
 import WorkRulesScreen from '../screens/WorkRulesScreen';
+import SmartOfficeControlScreen from '../screens/SmartOfficeControlScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -79,6 +80,7 @@ export default function AppNavigator() {
           <Stack.Screen name="Reports" component={ReportsScreen} />
           <Stack.Screen name="OvertimeRequest" component={OvertimeRequestScreen} />
           <Stack.Screen name="WorkRules" component={WorkRulesScreen} />
+          <Stack.Screen name="SmartOfficeControl" component={SmartOfficeControlScreen} />
         </>
       )}
     </Stack.Navigator>
