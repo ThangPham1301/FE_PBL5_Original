@@ -53,7 +53,9 @@ function SplashLoading() {
 }
 
 export default function AppNavigator() {
-  const { isLoading, isAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated, user } = useAuth();
+  const role = String(user?.role || '').toLowerCase();
+  const canUseAttendanceScreen = role !== 'employee' && role !== 'manager';
 
   if (isLoading) {
     return <SplashLoading />;
@@ -72,7 +74,7 @@ export default function AppNavigator() {
           <Stack.Screen name="LeaveManagement" component={LeaveManagementScreen} />
           <Stack.Screen name="AttendanceHistory" component={AttendanceHistoryScreen} />
           <Stack.Screen name="MyShifts" component={MyShiftsScreen} />
-          <Stack.Screen name="Attendance" component={AttendanceScreen} />
+          {canUseAttendanceScreen ? <Stack.Screen name="Attendance" component={AttendanceScreen} /> : null}
           <Stack.Screen name="FaceRegistration" component={FaceRegistrationScreen} />
           <Stack.Screen name="AdminEmployees" component={AdminEmployeesScreen} />
           <Stack.Screen name="DepartmentManagement" component={DepartmentManagementScreen} />
