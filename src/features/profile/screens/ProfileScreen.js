@@ -23,6 +23,8 @@ export default function ProfileScreen({ navigation }) {
   const { user } = useAuth();
   const role = String(user?.role || '').toLowerCase();
   const isAdmin = role === 'admin';
+  const isManager = role === 'manager';
+  const isEmployee = role === 'employee';
   const roleLabel = {
     admin: 'Quản trị viên',
     manager: 'Quản lý',
@@ -37,7 +39,8 @@ export default function ProfileScreen({ navigation }) {
     { label: 'Đăng ký khuôn mặt', icon: 'person-circle-outline', onPress: () => navigation.navigate('FaceRegistration') },
   ].filter(
     (item) =>
-      !(isAdmin && (item.label === 'Ca làm của tôi' || item.label === 'Chấm công vào / ra' || item.label === 'Đăng ký khuôn mặt'))
+      !(isAdmin && (item.label === 'Ca làm của tôi' || item.label === 'Chấm công vào / ra' || item.label === 'Đăng ký khuôn mặt')) &&
+      !((isEmployee || isManager) && item.label === 'Chấm công vào / ra')
   );
 
   const managementActions = [

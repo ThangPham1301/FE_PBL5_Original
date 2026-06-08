@@ -27,7 +27,7 @@ export const employeeAPI = {
   getAll: (params) => axiosInstance.get('/employees/', { params }),
   getById: (id) => axiosInstance.get(`/employees/${id}/`),
   create: (data) => axiosInstance.post('/employees/', data),
-  update: (id, data) => axiosInstance.put(`/employees/${id}/`, data),
+  update: (id, data) => axiosInstance.patch(`/employees/${id}/`, data),
   delete: (id) => axiosInstance.delete(`/employees/${id}/`),
   registerFace: (id, data) => axiosInstance.post(`/employees/${id}/register-face/`, data),
 };

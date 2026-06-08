@@ -10,6 +10,8 @@ export default function HomeScreen({ navigation }) {
   const role = String(user?.role || '').toLowerCase();
   const isAdmin = role === 'admin';
   const isManager = role === 'manager';
+  const isEmployee = role === 'employee';
+  const canUseAttendanceScreen = !isEmployee && !isManager;
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [openSection, setOpenSection] = useState('personal');
@@ -122,6 +124,10 @@ export default function HomeScreen({ navigation }) {
           return false;
         }
 
+        if (!canUseAttendanceScreen && item.key === 'attendance') {
+          return false;
+        }
+
         return true;
       });
 
@@ -135,7 +141,7 @@ export default function HomeScreen({ navigation }) {
   const guestIcons = ['scan-outline', 'time-outline', 'shield-checkmark-outline'];
 
   const authTiles = [
-    { icon: 'scan-outline', label: 'Chấm công vào' },
+    ...(canUseAttendanceScreen ? [{ icon: 'scan-outline', label: 'Chấm công vào' }] : []),
     { icon: 'calendar-outline', label: 'Ca trực' },
     { icon: 'document-text-outline', label: 'Nghỉ phép' },
     { icon: 'stats-chart-outline', label: 'Báo cáo' },

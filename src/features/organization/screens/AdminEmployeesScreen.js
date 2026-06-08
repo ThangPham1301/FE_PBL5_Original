@@ -6,16 +6,93 @@ import InfoCard from '../../../shared/components/InfoCard';
 import PrimaryButton from '../../../shared/components/PrimaryButton';
 import DetailModal from '../../../shared/components/DetailModal';
 import FloatingField from '../../../shared/components/FloatingField';
-import { employeeAPI, unwrapResponse } from '../../../core/api/api';
+import { departmentsAPI, employeeAPI, unwrapResponse } from '../../../core/api/api';
 import { useAuth } from '../../../application/providers/AuthContext';
 import { minLength, validateRequired } from '../../../shared/utils/validators';
 import useAppTheme from '../../../shared/theme/useAppTheme';
 import AnimatedCard from '../../../shared/components/AnimatedCard';
 
+const ROLE_OPTIONS = [
+  { value: 'employee', label: 'Nhân viên' },
+  { value: 'manager', label: 'Quản lý' },
+];
+
+const getRoleLabel = (role) => ROLE_OPTIONS.find((option) => option.value === role)?.label || '--';
+
+const getApiErrorMessage = (error, fallbackMessage) => {
+  const data = error?.response?.data;
+  if (!data) {
+    return error?.message || fallbackMessage;
+  }
+  if (typeof data.message === 'string' && data.message.trim()) {
+    return data.message;
+  }
+  if (typeof data.detail === 'string' && data.detail.trim()) {
+    return data.detail;
+  }
+
+  const findFirstMessage = (value) => {
+    if (typeof value === 'string' && value.trim()) {
+      return value;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const message = findFirstMessage(item);
+        if (message) {
+          return message;
+        }
+      }
+    }
+    if (value && typeof value === 'object') {
+      for (const item of Object.values(value)) {
+        const message = findFirstMessage(item);
+        if (message) {
+          return message;
+        }
+      }
+    }
+    return null;
+  };
+
+  return findFirstMessage(data) || fallbackMessage;
+};
+
+function SelectGroup({ label, options, value, onChange, colors }) {
+  return (
+    <View style={styles.selectWrap}>
+      <Text style={[styles.selectLabel, { color: colors.textMuted }]}>{label}</Text>
+      <View style={styles.selectOptions}>
+        {options.map((option) => {
+          const selected = String(value || '') === String(option.value);
+          return (
+            <Pressable
+              key={String(option.value)}
+              onPress={() => onChange(option.value)}
+              style={[
+                styles.selectOption,
+                {
+                  borderColor: selected ? colors.primary : colors.border,
+                  backgroundColor: selected ? colors.primarySoft : colors.bgSoft,
+                },
+              ]}
+            >
+              <Text style={[styles.selectOptionText, { color: selected ? colors.primary : colors.text }]}>
+                {option.label}
+              </Text>
+              {selected ? <Ionicons name="checkmark-circle" size={16} color={colors.primary} /> : null}
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export default function AdminEmployeesScreen() {
   const { colors, radius } = useAppTheme();
   const { user } = useAuth();
   const [items, setItems] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
@@ -30,7 +107,7 @@ export default function AdminEmployeesScreen() {
     lastName: '',
     email: '',
     departmentId: '',
-    position: '',
+    role: 'employee',
     phone: '',
   });
 
@@ -79,7 +156,7 @@ export default function AdminEmployeesScreen() {
       lastName: '',
       email: '',
       departmentId: '',
-      position: '',
+      role: 'employee',
       phone: '',
     });
     setEditingEmployee(null);
@@ -98,10 +175,20 @@ export default function AdminEmployeesScreen() {
   const loadData = async () => {
     setRefreshing(true);
     try {
-      const response = await employeeAPI.getAll();
-      const data = unwrapResponse(response);
+      const [employeeResponse, departmentResponse] = await Promise.all([
+        employeeAPI.getAll(),
+        departmentsAPI.getAll(),
+      ]);
+      const data = unwrapResponse(employeeResponse);
+      const departmentData = unwrapResponse(departmentResponse);
       const rawItems = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+      const rawDepartments = Array.isArray(departmentData?.results)
+        ? departmentData.results
+        : Array.isArray(departmentData)
+          ? departmentData
+          : [];
       setItems(sortEmployeesNewestFirst(rawItems));
+      setDepartments(rawDepartments);
     } finally {
       setRefreshing(false);
     }
@@ -134,19 +221,20 @@ export default function AdminEmployeesScreen() {
       user: {
         username: form.username.trim(),
         password: form.password,
-        role: 'employee',
+        role: form.role,
         first_name: form.firstName.trim(),
         last_name: form.lastName.trim(),
         email: form.email.trim(),
       },
       employee_id: form.employeeId.trim(),
-      position: form.position.trim(),
       phone: form.phone.trim(),
     };
 
     const departmentId = form.departmentId.trim();
     if (departmentId) {
       payload.department = Number(departmentId);
+    } else {
+      payload.department = null;
     }
 
     try {
@@ -170,7 +258,7 @@ export default function AdminEmployeesScreen() {
       lastName: employee.user?.last_name || '',
       email: employee.user?.email || '',
       departmentId: employee.department ? String(employee.department) : '',
-      position: employee.position || '',
+      role: employee.user?.role === 'manager' ? 'manager' : 'employee',
       phone: employee.phone || '',
     });
   };
@@ -194,14 +282,13 @@ export default function AdminEmployeesScreen() {
 
     const payload = {
       employee_id: form.employeeId.trim(),
-      position: form.position.trim(),
       phone: form.phone.trim(),
       user: {
         username: form.username.trim(),
         first_name: form.firstName.trim(),
         last_name: form.lastName.trim(),
         email: form.email.trim(),
-        role: 'employee',
+        role: form.role,
       },
     };
 
@@ -211,15 +298,28 @@ export default function AdminEmployeesScreen() {
     const departmentId = form.departmentId.trim();
     if (departmentId) {
       payload.department = Number(departmentId);
+    } else {
+      payload.department = null;
     }
 
     try {
       await employeeAPI.update(editingEmployee.id, payload);
       Alert.alert('Thành công', 'Đã cập nhật nhân viên.');
       closeForm();
+    } catch (error) {
+      console.error('[AdminEmployees] Update failed:', {
+        status: error?.response?.status,
+        data: error?.response?.data,
+        message: error?.message,
+      });
+      Alert.alert('Lỗi', getApiErrorMessage(error, 'Không thể cập nhật nhân viên.'));
+      return;
+    }
+
+    try {
       await loadData();
     } catch (error) {
-      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể cập nhật nhân viên.');
+      console.error('[AdminEmployees] Reload after update failed:', error);
     }
   };
 
@@ -274,7 +374,7 @@ export default function AdminEmployeesScreen() {
                 playAnimation={Boolean(enteredIds[String(item.id)]) && !animatedIds[String(item.id)]}
                 onAnimationDone={() => setAnimatedIds((prev) => ({ ...prev, [String(item.id)]: true }))}
                 title={`${item.employee_id} - ${item.full_name || `${item.user?.first_name || ''} ${item.user?.last_name || ''}`.trim() || item.user?.username || 'N/A'}`}
-                subtitle={`${item.department_name || 'Chưa có phòng ban'} | ${item.position || 'Chưa có chức vụ'}`}
+                subtitle={`${item.department_name || 'Chưa có phòng ban'} | ${getRoleLabel(item.user?.role)}`}
                 right={
                   <View style={styles.actions}>
                     <PrimaryButton title="Sửa" onPress={() => startEdit(item)} />
@@ -356,21 +456,26 @@ export default function AdminEmployeesScreen() {
                   onChangeText={(value) => setForm((prev) => ({ ...prev, email: value }))}
                   keyboardType="email-address"
                 />
-                <View style={styles.row}>
-                  <FloatingField
-                    label="Mã phòng ban (không bắt buộc)"
-                    containerStyle={styles.halfInput}
-                    value={form.departmentId}
-                    onChangeText={(value) => setForm((prev) => ({ ...prev, departmentId: value }))}
-                    keyboardType="number-pad"
-                  />
-                  <FloatingField
-                    label="Chức vụ (không bắt buộc)"
-                    containerStyle={styles.halfInput}
-                    value={form.position}
-                    onChangeText={(value) => setForm((prev) => ({ ...prev, position: value }))}
-                  />
-                </View>
+                <SelectGroup
+                  label="Phòng ban"
+                  colors={colors}
+                  value={form.departmentId}
+                  onChange={(value) => setForm((prev) => ({ ...prev, departmentId: String(value) }))}
+                  options={[
+                    { value: '', label: 'Chưa chọn' },
+                    ...departments.map((department) => ({
+                      value: String(department.id),
+                      label: department.name,
+                    })),
+                  ]}
+                />
+                <SelectGroup
+                  label="Chức vụ"
+                  colors={colors}
+                  value={form.role}
+                  onChange={(value) => setForm((prev) => ({ ...prev, role: value }))}
+                  options={ROLE_OPTIONS}
+                />
                 <FloatingField
                   label="Số điện thoại"
                   value={form.phone}
@@ -407,7 +512,7 @@ export default function AdminEmployeesScreen() {
                 { label: 'Họ tên', value: `${selectedEmployee.user?.first_name || ''} ${selectedEmployee.user?.last_name || ''}`.trim() || '--' },
                 { label: 'Email', value: selectedEmployee.user?.email || '--' },
                 { label: 'Phòng ban', value: selectedEmployee.department_name || '--' },
-                { label: 'Chức vụ', value: selectedEmployee.position || '--' },
+                { label: 'Chức vụ', value: getRoleLabel(selectedEmployee.user?.role) },
                 { label: 'Điện thoại', value: selectedEmployee.phone || '--' },
               ]
             : []
@@ -430,6 +535,33 @@ const styles = StyleSheet.create({
   },
   halfInput: {
     flex: 1,
+  },
+  selectWrap: {
+    gap: 6,
+  },
+  selectLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    paddingHorizontal: 2,
+  },
+  selectOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  selectOption: {
+    minHeight: 42,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  selectOptionText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   list: { gap: 10, paddingBottom: 30 },
   empty: {},
