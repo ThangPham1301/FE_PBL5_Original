@@ -102,7 +102,6 @@ export default function AdminEmployeesScreen() {
   const [form, setForm] = useState({
     username: '',
     password: '',
-    employeeId: '',
     firstName: '',
     lastName: '',
     email: '',
@@ -151,7 +150,6 @@ export default function AdminEmployeesScreen() {
     setForm({
       username: '',
       password: '',
-      employeeId: '',
       firstName: '',
       lastName: '',
       email: '',
@@ -202,7 +200,6 @@ export default function AdminEmployeesScreen() {
     const validationError = validateRequired({
       'Tên đăng nhập': form.username,
       'Mật khẩu': form.password,
-      'Mã nhân viên': form.employeeId,
       'Họ': form.firstName,
       'Tên': form.lastName,
     });
@@ -226,7 +223,6 @@ export default function AdminEmployeesScreen() {
         last_name: form.lastName.trim(),
         email: form.email.trim(),
       },
-      employee_id: form.employeeId.trim(),
       phone: form.phone.trim(),
     };
 
@@ -253,7 +249,6 @@ export default function AdminEmployeesScreen() {
     setForm({
       username: employee.user?.username || '',
       password: '',
-      employeeId: employee.employee_id || '',
       firstName: employee.user?.first_name || '',
       lastName: employee.user?.last_name || '',
       email: employee.user?.email || '',
@@ -270,7 +265,6 @@ export default function AdminEmployeesScreen() {
 
     const validationError = validateRequired({
       'Tên đăng nhập': form.username,
-      'Mã nhân viên': form.employeeId,
       'Họ': form.firstName,
       'Tên': form.lastName,
     });
@@ -281,7 +275,6 @@ export default function AdminEmployeesScreen() {
     }
 
     const payload = {
-      employee_id: form.employeeId.trim(),
       phone: form.phone.trim(),
       user: {
         username: form.username.trim(),
@@ -431,11 +424,15 @@ export default function AdminEmployeesScreen() {
                   onChangeText={(value) => setForm((prev) => ({ ...prev, password: value }))}
                   secureTextEntry
                 />
-                <FloatingField
-                  label="Mã nhân viên"
-                  value={form.employeeId}
-                  onChangeText={(value) => setForm((prev) => ({ ...prev, employeeId: value }))}
-                />
+                {!editingEmployee ? (
+                  <Text style={[styles.generatedIdHint, { color: colors.textMuted }]}>
+                    Mã nhân viên sẽ được hệ thống tạo tự động sau khi lưu.
+                  </Text>
+                ) : (
+                  <Text style={[styles.generatedIdHint, { color: colors.textMuted }]}>
+                    Mã nhân viên: {editingEmployee.employee_id}
+                  </Text>
+                )}
                 <View style={styles.row}>
                   <FloatingField
                     label="Họ"
@@ -486,7 +483,7 @@ export default function AdminEmployeesScreen() {
                 <PrimaryButton
                   title={editingEmployee ? 'Lưu cập nhật nhân viên' : 'Tạo nhân viên'}
                   onPress={editingEmployee ? updateEmployee : createEmployee}
-                  disabled={!form.username || !form.employeeId || !form.firstName || !form.lastName}
+                  disabled={!form.username || !form.firstName || !form.lastName}
                 />
                 <PrimaryButton
                   title={editingEmployee ? 'Hủy chỉnh sửa' : 'Đóng biểu mẫu'}
@@ -615,5 +612,10 @@ const styles = StyleSheet.create({
   formScrollContent: {
     gap: 8,
     paddingBottom: 4,
+  },
+  generatedIdHint: {
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 18,
   },
 });

@@ -148,7 +148,7 @@ export default function HomeScreen({ navigation }) {
   ];
 
   return (
-    <ScreenContainer scroll={false}>
+    <ScreenContainer scroll={false} showBackButton={!isAdmin}>
       <View style={[styles.root, { backgroundColor: theme.screen }]}>
         <View style={[styles.bgBlobTop, { backgroundColor: theme.accentSoft }]} />
         <View style={[styles.bgBlobBottom, { backgroundColor: theme.iconBg }]} />

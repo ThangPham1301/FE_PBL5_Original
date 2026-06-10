@@ -5,7 +5,14 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../../application/providers/AuthContext';
 import useAppTheme from '../theme/useAppTheme';
 
-export default function ScreenContainer({ children, scroll = true, contentStyle, showHeader = true, showFooter = true }) {
+export default function ScreenContainer({
+  children,
+  scroll = true,
+  contentStyle,
+  showHeader = true,
+  showFooter = true,
+  showBackButton = true,
+}) {
   const { colors, spacing } = useAppTheme();
   const navigation = useNavigation();
   const route = useRoute();
@@ -141,7 +148,7 @@ export default function ScreenContainer({ children, scroll = true, contentStyle,
       {showHeader ? (
         <View style={[styles.header, { backgroundColor: colors.card, borderColor: colors.border }]}> 
           <View style={styles.headerLeft}>
-            {navigation.canGoBack() ? (
+            {showBackButton && navigation.canGoBack() ? (
               <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
                 <Ionicons name="arrow-back" size={22} color={colors.text} />
               </Pressable>

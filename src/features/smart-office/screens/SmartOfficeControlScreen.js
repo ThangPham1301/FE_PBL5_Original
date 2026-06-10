@@ -119,7 +119,11 @@ export default function SmartOfficeControlScreen({ navigation }) {
       setCanControl(allowed);
       smartOfficeMqttService.setControlAccess(allowed);
 
-      if (allowed) {
+      if (payload.admin_override) {
+        setAccessMessage(
+          'Quản trị viên có thể điều khiển thiết bị bất cứ lúc nào.',
+        );
+      } else if (allowed) {
         setAccessMessage('Đã chấm công vào. Bạn có thể điều khiển thiết bị.');
       } else if (payload.checked_out) {
         setAccessMessage('Bạn đã chấm công ra. Thiết bị đã được khóa.');
