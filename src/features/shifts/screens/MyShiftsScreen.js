@@ -44,14 +44,14 @@ export default function MyShiftsScreen() {
     setError('');
     try {
       const response = await shiftsAPI.getMine();
-      const shift = unwrapResponse(response);
+      const shifts = unwrapResponse(response);
 
-      if (!shift) {
+      if (!Array.isArray(shifts) || shifts.length === 0) {
         setError('Bạn chưa được gán vào ca làm việc nào.');
         setItems([]);
         return;
       }
-      setItems([shift]);
+      setItems(shifts);
     } catch (requestError) {
       setItems([]);
       setError('Không thể tải dữ liệu ca làm việc.');
@@ -80,7 +80,7 @@ export default function MyShiftsScreen() {
             playAnimation={Boolean(enteredIds[String(item.id)]) && !animatedIds[String(item.id)]}
             onAnimationDone={() => setAnimatedIds((prev) => ({ ...prev, [String(item.id)]: true }))}
             title={item.name || `Ca làm việc ${item.id}`}
-            subtitle={`Thứ 2 - Thứ 6 | ${String(item.start_time).slice(0, 5)} - ${String(item.end_time).slice(0, 5)} | Đi trễ sau ${item.late_threshold} phút`}
+            subtitle={`Check-in: ${String(item.check_in_time || item.start_time).slice(0, 5)} | Check-out: ${String(item.check_out_time || item.end_time).slice(0, 5)} | Hiệu lực: ${item.effective_date} | Đi trễ sau ${item.late_threshold} phút`}
           />
         )}
         ListEmptyComponent={<Text style={[styles.empty, { color: colors.textMuted }]}>Chưa có dữ liệu ca làm.</Text>}

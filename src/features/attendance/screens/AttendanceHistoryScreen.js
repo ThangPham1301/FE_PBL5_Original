@@ -172,8 +172,8 @@ export default function AttendanceHistoryScreen() {
               animationIndex={index}
               playAnimation={Boolean(enteredIds[String(item.id)]) && !animatedIds[String(item.id)]}
               onAnimationDone={() => setAnimatedIds((prev) => ({ ...prev, [String(item.id)]: true }))}
-              title={`${item.employee_name || 'Nhân viên'} - ${item.date}`}
-              subtitle={`Vào: ${item.check_in || '--'} | Ra: ${item.check_out || '--'}`}
+              title={`${item.employee_name || 'Nhân viên'} - ${item.shift_name || 'Ca làm'} - ${item.date}`}
+              subtitle={`Dự kiến: ${String(item.shift_start_time || '--').slice(0, 5)} - ${String(item.shift_end_time || '--').slice(0, 5)} | Thực tế vào: ${item.check_in || '--'} | Ra: ${item.check_out || '--'}`}
               right={<StatusBadge status={item.status} />}
             />
           </Pressable>
@@ -190,6 +190,21 @@ export default function AttendanceHistoryScreen() {
             ? [
                 { label: 'Nhân viên', value: selectedItem.employee_name || '--' },
                 { label: 'Ngày', value: selectedItem.date || '--' },
+                { label: 'Ca làm việc', value: selectedItem.shift_name || '--' },
+                {
+                  label: 'Giờ check-in dự kiến',
+                  value: selectedItem.shift_start_time || '--',
+                },
+                {
+                  label: 'Giờ check-out dự kiến',
+                  value: selectedItem.shift_end_time || '--',
+                },
+                {
+                  label: 'Khung giờ ca',
+                  value: selectedItem.shift_start_time && selectedItem.shift_end_time
+                    ? `${selectedItem.shift_start_time} - ${selectedItem.shift_end_time}`
+                    : '--',
+                },
                 { label: 'Trạng thái', value: selectedItem.status || '--' },
                 { label: 'Giờ vào', value: selectedItem.check_in || '--' },
                 { label: 'Giờ ra', value: selectedItem.check_out || '--' },

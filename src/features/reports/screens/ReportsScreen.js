@@ -1,6 +1,6 @@
 ﻿import React, { useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ScreenContainer from '../../../shared/components/ScreenContainer';
@@ -120,8 +120,18 @@ export default function ReportsScreen() {
   };
 
   const exportReport = async () => {
-    if (!isPositiveInteger(filters.month) || !isPositiveInteger(filters.year)) {
+    if (
+      !isPositiveInteger(filters.month)
+      || Number(filters.month) < 1
+      || Number(filters.month) > 12
+      || !isPositiveInteger(filters.year)
+      || String(filters.year).length !== 4
+    ) {
       Alert.alert('Thiếu dữ liệu', 'Vui lòng nhập tháng và năm hợp lệ trước khi xuất báo cáo.');
+      return;
+    }
+    if (filters.departmentId.trim() && !isPositiveInteger(filters.departmentId)) {
+      Alert.alert('Dữ liệu không hợp lệ', 'Mã phòng ban phải là số nguyên dương.');
       return;
     }
 
@@ -142,6 +152,9 @@ export default function ReportsScreen() {
       }
 
       const fileName = `report-${filters.year}-${filters.month}.xlsx`;
+      if (!FileSystem.cacheDirectory) {
+        throw new Error('Thiết bị không hỗ trợ thư mục lưu tệp tạm.');
+      }
       const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
       const downloadUrl = `${API_BASE_URL}/reports/export/?${queryParts.join('&')}`;
 
@@ -150,6 +163,10 @@ export default function ReportsScreen() {
           Authorization: `Bearer ${token}`,
         },
       });
+      if (result.status !== 200) {
+        await FileSystem.deleteAsync(result.uri, { idempotent: true });
+        throw new Error(`Máy chủ không thể xuất báo cáo (HTTP ${result.status}).`);
+      }
 
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {

@@ -84,10 +84,12 @@ export const leaveAPI = {
 export const shiftsAPI = {
   getAll: (params) => axiosInstance.get('/shifts/', { params }),
   getMine: () => axiosInstance.get('/shifts/my/'),
+  getAssignments: (params) => axiosInstance.get('/shifts/assignments/', { params }),
   create: (data) => axiosInstance.post('/shifts/', data),
   update: (id, data) => axiosInstance.put(`/shifts/${id}/`, data),
   delete: (id) => axiosInstance.delete(`/shifts/${id}/`),
   assign: (data) => axiosInstance.post('/shifts/assign/', data),
+  unassign: (id) => axiosInstance.delete(`/shifts/assignments/${id}/`),
 };
 
 export const reportsAPI = {
